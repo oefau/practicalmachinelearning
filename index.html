@@ -250,14 +250,6 @@ training_trim&lt;-training[, -c(1:7, 12:36, 50:59, 69:83, 87:112, 125:139, 141:1
 <pre class="r"><code>set.seed(310)
 attach(training_trim)
 modFit &lt;- train(classe ~ ., preProcess = c(&quot;center&quot;, &quot;scale&quot;), method = &quot;rf&quot;, data = training_trim, trControl = trainControl(method = &quot;cv&quot;))</code></pre>
-<pre><code>## Loading required package: randomForest</code></pre>
-<pre><code>## randomForest 4.6-12</code></pre>
-<pre><code>## Type rfNews() to see new features/changes/bug fixes.</code></pre>
-<pre><code>## 
-## Attaching package: 'randomForest'</code></pre>
-<pre><code>## The following object is masked from 'package:ggplot2':
-## 
-##     margin</code></pre>
 <pre class="r"><code>#modFit$finalModel
 print(modFit)</code></pre>
 <pre><code>## Random Forest 
@@ -286,16 +278,8 @@ print(modFit)</code></pre>
 <pre class="r"><code>testing_trim&lt;-testing[, -c(1:7, 12:36, 50:59, 69:83, 87:112, 125:139, 141:150)]</code></pre>
 <p>The model fit was then used to predict the <code>classe</code> variable from the training test. The code chunk below also indicates the accuracy of the model.</p>
 <pre class="r"><code># prediction
-pred&lt;-predict(modFit,testing_trim)</code></pre>
-<pre><code>## Loading required package: randomForest</code></pre>
-<pre><code>## randomForest 4.6-12</code></pre>
-<pre><code>## Type rfNews() to see new features/changes/bug fixes.</code></pre>
-<pre><code>## 
-## Attaching package: 'randomForest'</code></pre>
-<pre><code>## The following object is masked from 'package:ggplot2':
-## 
-##     margin</code></pre>
-<pre class="r"><code># summarize model predictions
+pred&lt;-predict(modFit,testing_trim)
+# summarize model predictions
 confusionMatrix(testing_trim$classe,pred,mode=&quot;prec_recall&quot;)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 

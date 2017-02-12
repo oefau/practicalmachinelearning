@@ -2,8 +2,9 @@
 title: "Practical Machine Learning Course Project"
 author: "bp"
 date: "February 11, 2017"
-output: html_document
-
+output: 
+  html_document: 
+    keep_md: yes
 ---
 #Synopsis
 Two classication models, decision tree and random forests were applied to personal activity data collected using wearable devices in order to predict **how well** an activity was performed. The random forests model performance superseded decision tree, making it the model choice for the current analysis. 
