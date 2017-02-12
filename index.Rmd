@@ -1,0 +1,133 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "bp"
+date: "February 11, 2017"
+output: html_document
+
+---
+#Synopsis
+Two classication models, decision tree and random forests were applied to personal activity data collected using wearable devices in order to predict **how well** an activity was performed. The random forests model performance superseded decision tree, making it the model choice for the current analysis. 
+#Introduction
+The aim of this project is to analyse personal activity data from 6 participants and predict the quality of the activity (unilateral bicep curls). The data collected comprised of Euler angles(roll,pitch and yaw), raw accelerometer data, gyroscope and magnetometer readings from sensors mounted on the arm-band,glove, belt and dumbbell. Each participant performed  the exercise(bicep curl) in 5 different ways, with only method corresponding to the right quality and the remaining 4 correspond to mistakes.This project aims at building a machine learning algorithm to correctly classing a given exercise. This qualitative information is stored in a variable called `classe` (factor variable) and so it is the *target* variable.  
+
+###Data 
+
+```{r}
+# downloading training data
+file_name = c("pml-training.csv")
+if (!file.exists(file_name)) {
+  url = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+        download.file(url, "pml-training.csv", method="curl")
+}
+# downloading testing/validation data
+file_name = c("pml-testing.csv")
+if (!file.exists(file_name)) {
+  url = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+        download.file(url, "pml-testing.csv", method="curl")
+}
+#reading data
+data <- read.csv("pml-training.csv") #training data
+validation <- read.csv("pml-testing.csv") #validation data
+```
+
+The are a total of `r dim(data)[1]` observations and `r dim(data)[2]` variables. In order to measure the out of sample error rate (measure of how well our training on training data set generalizes to the data not seen before, namely the testing set) we partition the training data set in to 60% `training` and 40% `testing` set.
+```{r}
+library(caret)
+set.seed(310)
+inTrain <- createDataPartition(data$classe, p = .6, list = FALSE)
+training <- data[inTrain,]
+testing <- data[-inTrain,]
+```
+
+##Variable Selection
+
+There are a total of **160** variables as illustrated by the previous section.These variables comprise of both measured data and features calculated on this data. For instance for the Euler **3** angles of each of the **4** sensors, **8** features mean, variance, standard deviation, maximum, minimum,amplitude, kurtosis and skewness were calculated [Velloso et al](http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201#ixzz4YSNx0hiS). So, these variables are redundant and were ignored. The outcome variable `classe` has 5 categories, `r unique(training$classe) `. The first 7 columns from the data were also excluded since they are not relevant for predicting `classe`. It also turns out the there are almost 41% NAs, which occur in derived featuers, so ignoring columns with the derived feature also took care of the missing values.
+
+```{r}
+# ignoring calculated feature from training
+training_trim<-training[, -c(1:7, 12:36, 50:59, 69:83, 87:112, 125:139, 141:150)]
+```
+
+The dimensions of `training_trim` are `r dim(training_trim)` and there are no missing values in this data set. 
+```{r}
+table(complete.cases(training_trim))
+```
+And the list of 52 relevant variables can be obtained as below.
+
+```{r}
+unique(variable.names(training_trim))
+```
+The variables were checked for near zero variance as demostrated in the code chunck below.
+
+```{r}
+nearZeroVar(training_trim,saveMetrics = TRUE)
+```
+
+Since none of the variables have zero or near zero variance, all of the variables will be retained for further analysis.
+
+#Model Fit
+
+Since this a classification problem, the random forest algorithm was used to fit a prediction model to the selected variables. The data were centered and scaled using `preProcess` option of the `train()` function.
+
+##Random forest classification 
+
+Instead of the default simple bootstrap resampling used by `train()` function, repeated *K*-fold cross-validation is employed in this analysis with the aim of obtaining better out-of-sample error rates. The function ``trainControl()`` was used to specifiy *K*=10 (default).Cross-validation is very useful technique for evaluating different combinations of feature selection, dimensionality reduction, and learning algorithms. 
+```{r, cache=TRUE}
+set.seed(310)
+attach(training_trim)
+modFit <- train(classe ~ ., preProcess = c("center", "scale"), method = "rf", data = training_trim, trControl = trainControl(method = "cv"))
+```
+
+```{r, cache=TRUE}
+#modFit$finalModel
+print(modFit)
+```
+
+The accuracy of the optimal random forests model was 99.03% with `mtry = 26`, this is the number of variables used to split the trees.
+
+##Testing and out-of-sample error estimate
+
+The out-of-sample error estimate was obtained by applying the above model to the `testing` set, which was processed like the training set.
+```{r}
+testing_trim<-testing[, -c(1:7, 12:36, 50:59, 69:83, 87:112, 125:139, 141:150)]
+```
+The model fit was then used to predict the `classe` variable from the training test. The code chunk below also indicates the accuracy of the model.
+```{r}
+# prediction
+pred<-predict(modFit,testing_trim)
+# summarize model predictions
+confusionMatrix(testing_trim$classe,pred,mode="prec_recall")
+```
+
+The expected out-of-sample error is calculated as `1 - accuracy` and is about at 0.01, or 1%. 
+
+##Decision Tree Classification
+
+In this section CART model is built using the `rpart` option.
+```{r}
+set.seed(310)
+tree<-train (y = training_trim$classe, x = training_trim,method = "rpart",preProcess=c("center","scale") )
+
+```
+
+The overall accuracy (72%) of CART model is lower than the random forests model, so random forests classification is chosen for further analysis.
+
+##Final Model Evaluation
+
+The importance of the variables used can be assessed by `varImp()` function, here is a list of the first 20 variables.
+```{r}
+varImp(modFit)
+```
+The possible next step would be to tune/speed up the model, and probably use variables based on their importance and by looking at the correlation between matrix. However, due to time constraints only single setting of random forests model was considered which is most likely to be appropriate due to very small out-of-sample error rate. 
+
+###Validation set (20 test cases)
+
+Test data set comprises 20 cases. With an accuracy above 99% on our cross-validation data, we can expect that very few, or none, of the test samples will be missclassified.
+```{r}
+validation_trim<-validation[, -c(1:7, 12:36, 50:59, 69:83, 87:112, 125:139, 141:150)]
+pred_validation <- predict(modFit,validation_trim)
+pred_validation
+```
+###References
+1. Qualitative Activity Recognition of Weight Lifting Exercises,Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H.Proceedings of 4th Augmented Human (AH) International Conference in cooperation with ACM SIGCHI (Augmented Human'13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
+ <http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201#ixzz4YSNx0hiS>
